@@ -1,0 +1,10 @@
+# 本机个人配置（MCP 服务启用项等，勿上传）
+.claude/settings.local.json
+
+# 备份产物（auto-backup hook / 手动备份）
+*.orig
+*.bak
+*.bak.*
+
+# 临时文件
+.gh_*.tmp.json
