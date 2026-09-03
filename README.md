@@ -5,6 +5,8 @@
 - **版本**：v4.2 ｜ **平台**：Windows（PyCharm / pycharm64）
 - 适用于需要 Claude Code 长时间无人值守运行的场景
 
+> **路径约定**：`<claw-home>` 为 claw 类运行时数据目录名的占位符（形如 `~\.clawXXX`，实际名称因产品而异），部署前请替换；`~\`、`$env:USERPROFILE\`、`%USERPROFILE%\` 均为当前用户主目录（按上下文选用）。
+
 ## 特性
 
 - **JSONL 主检测**：UTF-8 读取 Claude Code 会话日志，仅在检测到最后一条消息为待批准的 `tool_use` 时发送 Enter（Edit/Write 走 Claude Code 默认 `acceptEdits` 自动批准，跳过）
@@ -12,7 +14,7 @@
 - **断路器**：连续 3 次 Enter 无效（20s 内 JSONL 未变化）即阻断该会话 10 分钟，防止对挂起/崩溃的 Claude 无限重试
 - **安全护栏**：`AskUserQuestion` 绝不自动批准——Claude 在向**用户**征询决策时，自动 Enter 会在用户不知情时替用户选中默认选项
 - **Dry-Run 模式**：`-DryRun` 只报告"会发生什么"，不发送任何按键，用于无副作用诊断
-- **审批留痕**：每次自动批准写入 `~\.qclaw\reports\claude-approvals.md`（超限自动轮转归档）
+- **审批留痕**：每次自动批准写入 `~\<claw-home>\reports\claude-approvals.md`（超限自动轮转归档）
 - 循环检测由 **OpenClaw cron**（30s）或 **Windows 任务计划程序**（最低 1 分钟）驱动
 
 ## 架构
@@ -42,7 +44,7 @@
 
 完整步骤见 `SKILL.md` 的「部署」节，核心三步：
 
-1. 将 `scripts/monitor.ps1` 复制为 `~\.qclaw\scripts\claude-auto-approve.ps1`
+1. 将 `scripts/monitor.ps1` 复制为 `~\<claw-home>\scripts\claude-auto-approve.ps1`
 2. 创建循环定时任务（OpenClaw cron 或 Windows 计划任务 `ClaudeCodeAutoApprover`）
 3. 手动运行一次 + `-DryRun` 验证检测逻辑
 

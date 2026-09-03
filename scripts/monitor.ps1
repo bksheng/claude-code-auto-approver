@@ -8,10 +8,14 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$reportPath = "$env:USERPROFILE\.qclaw\reports\claude-approvals.md"
-$statePath  = "$env:USERPROFILE\.qclaw\scripts\claude-approver-state.json"
+
+# NOTE: <claw-home> is a PLACEHOLDER for the runtime data directory name
+# (differs per product, e.g. ~\.clawXXX form). Replace ALL <claw-home>
+# occurrences below (reportPath/statePath/debugLog/w32Dll) before deploying.
+$reportPath = "$env:USERPROFILE\<claw-home>\reports\claude-approvals.md"
+$statePath  = "$env:USERPROFILE\<claw-home>\scripts\claude-approver-state.json"
 $projectsDir = "$env:USERPROFILE\.claude\projects"
-$debugLog  = "$env:USERPROFILE\.qclaw\reports\claude-approver-debug.log"
+$debugLog  = "$env:USERPROFILE\<claw-home>\reports\claude-approver-debug.log"
 
 # ── Configurable thresholds ──
 $JSONL_IDLE_MIN_SEC    = 45    # JSONL must be idle at least this long
@@ -225,7 +229,7 @@ Add-Type -AssemblyName System.Windows.Forms
 # Load precompiled W32.dll (compiled once with csc.exe) instead of Add-Type source compile.
 # Add-Type source compile spawns csc.exe which inherits the huge environment block
 # (over 65535 bytes on this machine) and fails with InvalidOperationException.
-$w32Dll = "$env:USERPROFILE\.qclaw\scripts\W32.dll"
+$w32Dll = "$env:USERPROFILE\<claw-home>\scripts\W32.dll"
 try {
     Add-Type -Path $w32Dll -ErrorAction Stop
     Write-Dbg "W32.dll loaded OK"

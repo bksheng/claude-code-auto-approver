@@ -21,14 +21,18 @@ description: 在 PyCharm 终端中自动批准 Claude Code 的权限请求。适
                     └──────────────┘
 ```
 
+## 路径约定
+
+本文中 `<claw-home>` 为 **claw 类运行时数据目录名的占位符**——实际目录名因产品而异（形如 `~\.clawXXX`），部署前请全文替换。路径前缀 `~\`（通用）、`$env:USERPROFILE\`（PowerShell）、`%USERPROFILE%\`（任务计划程序参数，系统自动展开）均表示当前用户主目录，不依赖具体用户名。
+
 ## 部署
 
 ### 1. 部署监控脚本
 
-将 `scripts/monitor.ps1` 复制到 `~\.qclaw\scripts\claude-auto-approve.ps1`：
+将 `scripts/monitor.ps1` 复制到 `~\<claw-home>\scripts\claude-auto-approve.ps1`：
 
 ```powershell
-Copy-Item "scripts/monitor.ps1" "$env:USERPROFILE\.qclaw\scripts\claude-auto-approve.ps1"
+Copy-Item "scripts/monitor.ps1" "$env:USERPROFILE\<claw-home>\scripts\claude-auto-approve.ps1"
 ```
 
 ### 2. 创建定时任务
@@ -42,7 +46,7 @@ cron add
   sessionTarget: "isolated"
   payload: {
     kind: "agentTurn",
-    message: "Run: powershell -ExecutionPolicy Bypass -File ~\.qclaw\scripts\claude-auto-approve.ps1\nReport briefly if any approval was handled. Do NOT use message tool."
+    message: "Run: powershell -ExecutionPolicy Bypass -File ~\<claw-home>\scripts\claude-auto-approve.ps1\nReport briefly if any approval was handled. Do NOT use message tool."
   }
   delivery: { mode: "none" }
 ```
@@ -52,7 +56,7 @@ OpenClaw 未运行时用系统计划任务替代，独立于任何 agent 环境�
 
 ```powershell
 # 每 1 分钟运行一次，365 天循环（任务计划程序最小间隔为 1 分钟，无法用 30 秒）
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\Users\sheng\.qclaw\scripts\claude-auto-approve.ps1"'
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%USERPROFILE%\<claw-home>\scripts\claude-auto-approve.ps1"'
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 365)
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -StartWhenAvailable
@@ -72,7 +76,7 @@ Register-ScheduledTask -TaskName "ClaudeCodeAutoApprover" -Action $action -Trigg
 手动运行一次确认工作正常：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.qclaw\scripts\claude-auto-approve.ps1"
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\<claw-home>\scripts\claude-auto-approve.ps1"
 ```
 
 ### 4. 用 Dry-Run 诊断（无副作用）
@@ -80,7 +84,7 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.qclaw\scripts\claude
 v4.2+ 支持 dry-run 模式：只报告"会发生什么"，不实际发送任何按键。用于对照当前会话检查检测逻辑是否正确：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.qclaw\scripts\claude-auto-approve.ps1" -DryRun
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\<claw-home>\scripts\claude-auto-approve.ps1" -DryRun
 # 输出: DryRun verdict: NO-ACTION | idle=2176s | conclusive=True
 #        DryRun verdict: WOULD-APPROVE (Bash) | idle=45s | conclusive=True
 ```
@@ -109,27 +113,27 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.qclaw\scripts\claude
 ### 审批记录
 
 ```powershell
-Get-Content "$env:USERPROFILE\.qclaw\reports\claude-approvals.md"
+Get-Content "$env:USERPROFILE\<claw-home>\reports\claude-approvals.md"
 ```
 
 ### 会话阻断状态
 
 ```powershell
-Get-Content "$env:USERPROFILE\.qclaw\scripts\claude-approver-state.json" | ConvertFrom-Json
+Get-Content "$env:USERPROFILE\<claw-home>\scripts\claude-approver-state.json" | ConvertFrom-Json
 ```
 
 ### 解除被阻断的会话
 
 ```powershell
 # PS 5.1 兼容写法：-AsHashtable 仅 PS6+ 支持，用这个代替
-$state = Get-Content "$env:USERPROFILE\.qclaw\scripts\claude-approver-state.json" -Raw | ConvertFrom-Json
+$state = Get-Content "$env:USERPROFILE\<claw-home>\scripts\claude-approver-state.json" -Raw | ConvertFrom-Json
 $h = @{}
 foreach ($p in $state.PSObject.Properties) { $h[$p.Name] = $p.Value }
 $h.Remove("session-id-here")
-$h | ConvertTo-Json -Depth 3 | Set-Content "$env:USERPROFILE\.qclaw\scripts\claude-approver-state.json"
+$h | ConvertTo-Json -Depth 3 | Set-Content "$env:USERPROFILE\<claw-home>\scripts\claude-approver-state.json"
 
 # 或全部重置：
-Remove-Item "$env:USERPROFILE\.qclaw\scripts\claude-approver-state.json"
+Remove-Item "$env:USERPROFILE\<claw-home>\scripts\claude-approver-state.json"
 ```
 
 ## 停止
@@ -177,7 +181,7 @@ Windows 计划任务方式：`Unregister-ScheduledTask -TaskName "ClaudeCodeAuto
 - 检查 `claude.exe` 进程是否在运行（`Get-Process claude`）
 - 检查会话是否被阻断（见上方状态文件）
 - 检查能否找到 PyCharm 窗口 —— 脚本目标进程为 `pycharm64` 或 `pycharm`
-- 检查调试日志 `~\.qclaw\reports\claude-approver-debug.log` —— 记录 W32.dll 加载状态、点击坐标和每次 Enter 发送。若看到 "W32.dll load FAILED"，需重新编译 DLL（环境块过大导致 csc.exe 无法启动）
+- 检查调试日志 `~\<claw-home>\reports\claude-approver-debug.log` —— 记录 W32.dll 加载状态、点击坐标和每次 Enter 发送。若看到 "W32.dll load FAILED"，需重新编译 DLL（环境块过大导致 csc.exe 无法启动）
 - **检查 JSONL 编码修复**：若审批静默失败，用 `ConvertFrom-Json` 验证最新条目能否解析 —— 中文 Windows 上 `Get-Content` 会破坏 UTF-8，除非用 `[System.IO.File]::ReadAllLines($path, [Text.Encoding]::UTF8)`。症状：无尽的 `INEFFECTIVE fail 1/3` 记录且永不累加到 3
 
 **Claude 提问（AskUserQuestion）但期望自动批准：**
@@ -200,14 +204,14 @@ Windows 计划任务方式：`Unregister-ScheduledTask -TaskName "ClaudeCodeAuto
 |------|------|
 | `scripts/monitor.ps1` | 核心检测 + 审批脚本（v4：UTF-8 读取、PS5.1 安全状态、DLL 加载） |
 | `scripts/W32.cs` | 预编译 Win32 P/Invoke 封装的 C# 源码（编译一次 → W32.dll） |
-| `~\.qclaw\scripts\W32.dll` | 通过 `Add-Type -Path` 加载的预编译程序集（规避 csc.exe 环境块失败） |
-| `~\.qclaw\reports\claude-approvals.md` | 审批历史记录 |
-| `~\.qclaw\reports\claude-approver-debug.log` | 调试日志（DLL 加载、点击坐标、Enter 发送） |
-| `~\.qclaw\scripts\claude-approver-state.json` | 会话阻断状态 |
+| `~\<claw-home>\scripts\W32.dll` | 通过 `Add-Type -Path` 加载的预编译程序集（规避 csc.exe 环境块失败） |
+| `~\<claw-home>\reports\claude-approvals.md` | 审批历史记录 |
+| `~\<claw-home>\reports\claude-approver-debug.log` | 调试日志（DLL 加载、点击坐标、Enter 发送） |
+| `~\<claw-home>\scripts\claude-approver-state.json` | 会话阻断状态 |
 | `references/detection-strategy.md` | 完整检测逻辑说明 |
 
 ### 修改 W32.cs 后重新编译 W32.dll
 
 ```powershell
-& "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe" /target:library /out:"$env:USERPROFILE\.qclaw\scripts\W32.dll" "C:\path\to\W32.cs"
+& "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe" /target:library /out:"$env:USERPROFILE\<claw-home>\scripts\W32.dll" "C:\path\to\W32.cs"
 ```
